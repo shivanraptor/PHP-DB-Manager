@@ -1,0 +1,85 @@
+PHP-DB-Manager
+==============
+PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
+Features:
+- UTF-8 Connection
+- Support Transaction
+- Support MySQLi PHP driver
+
+Requirements:
+- PHP 5.0+
+- MySQL 4.1+
+- PHP MySQLi module enabled
+
+3-Step Easy Setup
+=================
+Step 1:
+Put the "lib" folder at the same folder of your PHP code
+
+Step 2:
+Open "lib/config.inc.php" to configure the connection parameters to MySQL database
+Parameters explained:
+db_user : user name of MySQL database account
+db_pass : password of MySQL database account
+db_host : host name / IP of MySQL database ( in most cases, it is "localhost" )
+db_schm : the desired schema of MySQL database
+db_encoding : encoding of MySQL database connection
+db_prefix : table prefix of MySQL database tables ( see Example 1 below )
+
+Step 3:
+Include the DB Manager to your codes and follow the sample codes to write your logic
+
+
+Sample Code
+===========
+// -------------------------------
+// Example 1: Simple SELECT action
+// -------------------------------
+
+// DBManager - Include the Library
+require_once('lib/config.inc.php');
+require_once('lib/db.manager.mysqli.php');
+
+// DBManager - Initialization
+$db = new dbManager(db_host, db_user, db_pass, db_schm);
+
+// DBManager - Query & Get the result
+$sql = "SELECT * FROM " . db_prefix . "example";
+$rs = $db->query($sql);
+while($row = $db->result($rs)) {
+	// do your action here, for example...
+	echo $row['action_id'];
+}
+
+// -------------------------------
+// Example 2: Simple INSERT action
+// -------------------------------
+// DBManager - Include the Library
+require_once('lib/config.inc.php');
+require_once('lib/db.manager.mysqli.php');
+
+// DBManager - Initialization
+$db = new dbManager(db_host, db_user, db_pass, db_schm);
+
+// DBManager - Query & Get the result
+$sql = "INSERT INTO tbl_example VALUES ($value1, '$value2')";
+$db->query($sql);
+
+$row_id = $db->insert_id();
+
+
+Other Functions
+===============
+#1: Support of charaset, disable debug message
+$db = new dbManager(db_host, db_user, db_pass, db_schm, FALSE, 'utf8');
+
+#2: To check connection error:
+if($db->error !== NULL) {
+	// some error exists
+}
+	
+#3: Escape String (to ensure clean data is entered into database)
+$db->escape_string($str);
+
+#4: Direct Use of MySQLi functions, e.g. mysqli::rollback()
+$db->mysqli->rollback();
