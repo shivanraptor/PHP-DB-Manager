@@ -1,18 +1,20 @@
-PHP-DB-Manager
-==============
+//=====================//
+// PHP-DB-Manager v1.1 //
+//=====================//
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
 Features:
 - UTF-8 Connection
 - Support Transaction
 - Support MySQLi PHP driver
+- Support custom port
 
 Requirements:
 - PHP 5.0+
 - MySQL 4.1+
 - PHP MySQLi module enabled
 
-3-Step Easy Setup
-=================
+== 3-Step Easy Setup ================
+
 Step 1:
 Put the "lib" folder at the same folder of your PHP code
 
@@ -30,8 +32,19 @@ Step 3:
 Include the DB Manager to your codes and follow the sample codes to write your logic
 
 
-Sample Code
-===========
+== Parameters of constructor ========
+
+host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
+user 		: Username
+pass		: Password
+_debugMode	: Debug mode ( set TRUE to enable , set FALSE to disable )
+charSet		: Character set of connection ( defaults to UTF-8 )
+autoCommit	: Transaction Auto Commit mode ( set TRUE to enable , set FALSE to disable )
+port		: Server Port of MySQL server ( defaults to 3306 , standard port of MySQL server )
+persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disable )
+
+
+== Sample Code ======================
 // -------------------------------
 // Example 1: Simple SELECT action
 // -------------------------------
@@ -68,18 +81,40 @@ $db->query($sql);
 $row_id = $db->insert_id();
 
 
-Other Functions
-===============
-#1: Support of charaset, disable debug message
-$db = new dbManager(db_host, db_user, db_pass, db_schm, FALSE, 'utf8');
+== Other Functions ==================
 
-#2: To check connection error:
-if($db->error !== NULL) {
-	// some error exists
-}
-	
-#3: Escape String (to ensure clean data is entered into database)
-$db->escape_string($str);
+1. Backward compatible version:
+   $db = new dbManager(db_host, db_user, db_pass, db_schm);
+   
+2. Support of charaset, disable debug message
+   $db = new dbManager(db_host, db_user, db_pass, db_schm, FALSE, 'utf8');
+   
+3. To check connection error:
+   if($db->error !== NULL) {
+	   // error exists
+   }
+   
+4. Escape String
+   $db->escape_string($str);
+   
+5. Use MySQLi PHP functions directly, e.g. mysqli::rollback()
+   $db->mysqli->rollback();
 
-#4: Direct Use of MySQLi functions, e.g. mysqli::rollback()
-$db->mysqli->rollback();
+
+== Version History ==================
+v1.0
+- initial release
+v1.1
+- add custom server port support
+- add persistent connection support
+
+
+== Program History ==================
+original dbManager for MySQL by Raptor Kwok
+original dbManager for MySQLi by Hoyu
+
+Feel free to use, but kindly leave this statement here.
+
+
+== Technical Support ================
+findme@raptor.hk ( please specify dbManager for MySQLi )

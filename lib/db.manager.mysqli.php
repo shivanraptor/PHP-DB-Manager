@@ -1,7 +1,46 @@
 <?php
 /*
-	dbManager for Mysqli
-	version 1.0		7 Oct 2011		Initial Release
+	dbManager for Mysqli v1.1
+	== Usage ============================
+	1. Backward compatible version:
+	   $db = new dbManager(db_host, db_user, db_pass, db_schm);
+	2. Support of charaset, disable debug message
+	   $db = new dbManager(db_host, db_user, db_pass, db_schm, FALSE, 'utf8');
+	3. To check connection error:
+	   if($db->error !== NULL) {
+		   // error exists
+	   }
+	4. Escape String
+	   $db->escape_string($str);
+	5. Use MySQLi PHP functions directly
+	   Obtain MySQLi object by:
+	   $db->mysqli
+	   
+	Parameters of constructor:
+	host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
+	user 		: Username
+	pass		: Password
+	_debugMode	: Debug mode ( set TRUE to enable , set FALSE to disable )
+	charSet		: Character set of connection ( defaults to UTF-8 )
+	autoCommit	: Transaction Auto Commit mode ( set TRUE to enable , set FALSE to disable )
+	port		: Server Port of MySQL server ( defaults to 3306 , standard port of MySQL server )
+	persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disable )
+	
+	
+	== Version History ==================
+	v1.0
+	- initial release
+	v1.1
+	- add custom server port support
+	- add persistent connection support
+	
+	== Program History ==================
+	original dbManager for MySQL by Raptor Kwok
+	original dbManager for MySQLi by Hoyu
+	
+	Feel free to use, but kindly leave this statement here.
+	
+	Technical Support : findme@raptor.hk ( please specify dbManager for MySQLi
 */
 
 class dbManager {
@@ -9,21 +48,20 @@ class dbManager {
 	public $debugMode = TRUE;
 	public $mysqli;
 	
-	public function __construct($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE) {
-		// default with non-persistent link
+	public function __construct($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE, $port = 3306, $persistent = FALSE) {
 		$this->debugMode = $_debugMode;
-		$this->error = $this->connect($host, $user, $pass, $dbname, 0 ,$charSet,$autoCommit);
-
+		$this->error = $this->connect($host, $user, $pass, $dbname, $persistent ,$charSet, $autoCommit, $port);
 	}
-
-	public function dbManager($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE) {
-		// default with non-persistent link
+	public function dbManager($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE, $port = 3306, $persistent = FALSE) {
 		$this->debugMode = $_debugMode;
-		$this->connect($host, $user, $pass, $dbname, 0 ,$charSet,$autoCommit);
+		$this->connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit, $port);
 	}
-	public function connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit) {
-		//actually, no persistent connection here
-		$this->mysqli = new mysqli($host, $user, $pass, $dbname);
+	
+	public function connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit, $port) {
+		if($persistent === true) {
+			$host = 'p:' . $host;
+		}
+		$this->mysqli = new mysqli($host, $user, $pass, $dbname, $port);
 		if ($this->mysqli->connect_error !== NULL) {
 			if($this->debugMode){
 				die('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
