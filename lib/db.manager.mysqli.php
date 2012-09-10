@@ -40,7 +40,7 @@
 	
 	Feel free to use, but kindly leave this statement here.
 	
-	Technical Support : findme@raptor.hk ( please specify dbManager for MySQLi
+	Technical Support : findme@raptor.hk ( please specify "dbManager for MySQLi" in title )
 */
 
 class dbManager {
