@@ -1,16 +1,18 @@
 //=====================//
-// PHP-DB-Manager v1.1 //
+// PHP-DB-Manager v1.3 //
 //=====================//
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
 Features:
 - UTF-8 Connection
 - Support Transaction
+- Support Prepared Statement ( new in v1.3 )
 - Support MySQLi PHP driver
+- Support MSSQL PHP driver ( new in v1.2 )
 - Support custom port
 
 Requirements:
-- PHP 5.0+
-- MySQL 4.1+
+- PHP v5.0+ ( v5.3+ recommended )
+- MySQL v4.1+
 - PHP MySQLi module enabled
 
 == 3-Step Easy Setup ================
@@ -99,7 +101,18 @@ $row_id = $db->insert_id();
    
 5. Use MySQLi PHP functions directly, e.g. mysqli::rollback()
    $db->mysqli->rollback();
-
+6. Prepared Statement
+   $sql = "SELECT field_name1, field_name2 FROM table_name WHERE id = ?"; 	// cannot use "SELECT *"
+   $params = array('i' => 1); 												// i = integer , d = double , s = string , b = blob
+   $result = $db->query_prepare($sql, $params);
+   if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
+	   $row = $db->result($result);
+	   echo $row['field_name1'];
+   } else {
+	   foreach($result as $row) {
+		   echo $row['field_name1'] . ' ' .$row['field_name2'];
+	   }
+   }
 
 == Version History ==================
 v1.0
@@ -107,7 +120,10 @@ v1.0
 v1.1
 - add custom server port support
 - add persistent connection support
-
+v1.2
+- add fetch_object() support
+v1.3
+- add function query_prepare($sql, $params);
 
 == Program History ==================
 original dbManager for MySQL by Raptor Kwok

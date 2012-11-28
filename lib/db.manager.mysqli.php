@@ -1,6 +1,6 @@
 <?php
 /*
-	dbManager for Mysqli v1.1
+	dbManager for Mysqli v1.3
 	== Usage ============================
 	1. Backward compatible version:
 	   $db = new dbManager(db_host, db_user, db_pass, db_schm);
@@ -15,6 +15,18 @@
 	5. Use MySQLi PHP functions directly
 	   Obtain MySQLi object by:
 	   $db->mysqli
+	6. Prepared Statement
+	   $sql = "SELECT field_name1, field_name2 FROM table_name WHERE id = ?"; 	// cannot use "SELECT *"
+	   $params = array('i' => 1); 												// i = integer , d = double , s = string , b = blob
+	   $result = $db->query_prepare($sql, $params);
+	   if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
+		   $row = $db->result($result);
+		   echo $row['field_name1'];
+	   } else {
+		   foreach($result as $row) {
+		   	   echo $row['field_name1'] . ' ' .$row['field_name2'];
+		   }
+	   }
 	   
 	Parameters of constructor:
 	host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
@@ -33,6 +45,10 @@
 	v1.1
 	- add custom server port support
 	- add persistent connection support
+	v1.2
+	- add fetch_object() support
+	v1.3
+	- add function query_prepare($sql, $params);
 	
 	== Program History ==================
 	original dbManager for MySQL by Raptor Kwok
@@ -79,7 +95,68 @@ class dbManager {
 	public function select_db($dbname) {
 		return $this->mysqli->select_db($dbname);
 	}
-	public function query($sql,$report_error = NULL,&$error_msg = '') {
+	public function query_prepare($sql, $params, $report_error = NULL, &$error_msg = '') {
+		if($this->error !== NULL){
+			if($this->debugMode){
+				echo 'MySQL connection error!';
+			}
+			return FALSE;
+		}
+		$stmt = $this->mysqli->prepare($sql);
+		if($stmt !== FALSE) {
+			$values = array();
+			$types = '';
+			foreach($params as $k => $v) {
+				$values[] = $v;
+				$types .= $k;
+			}
+			call_user_func_array(array($stmt, 'bind_param'), array_merge(array($types), $values));
+			$stmt->execute();
+			
+			if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
+				return $stmt->get_result();
+			} else {
+				$fields = array();
+				$results = array();
+				
+				$stmt->store_result();
+				$meta = $stmt->result_metadata();
+				while ($field = $meta->fetch_field()) {
+					$var = $field->name;
+					$$var = null;
+					$fields[$var] = &$$var;
+				}
+				call_user_func_array(array($stmt,'bind_result'),$fields);
+				$i = 0;
+		        while ($stmt->fetch()) {
+		            $results[$i] = array();
+		            foreach($fields as $k => $v)
+		                $results[$i][$k] = $v;
+		            $i++;
+		        }
+		
+		        // close statement
+		        $stmt->close();
+		        return $results;
+			}
+		} else {
+			if($report_error === NULL){
+				$report_error = $this->debugMode;
+			}
+			if($report_error === TRUE){
+				$err_msg  = 'MySQL error: ' . $this->mysqli->error . "\n";
+				$err_msg .= 'Query: ' . $sql;
+				die($err_msg);
+			}elseif($error_msg != ''){
+				$error_msg = $this->mysqli->error;
+				return FALSE;
+			}else{
+				return FALSE;
+			}
+		}
+	}
+	
+	public function query($sql, $report_error = NULL, &$error_msg = '') {
 		if($this->error !== NULL){
 			if($this->debugMode){
 				echo 'MySQL connection error!';
@@ -121,6 +198,9 @@ class dbManager {
 				break;
 			case 'row':
 				$out_value = $rs->fetch_row();
+				break;
+			case 'object':
+				$out_value = $rs->fetch_object();
 				break;
 			case 'field':
 				$out_value = $rs->fetch_field();
