@@ -1,6 +1,6 @@
 <?php
 /*
-	dbManager for Mysqli v1.3
+	dbManager for Mysqli v1.4
 	== Usage ============================
 	1. Backward compatible version:
 	   $db = new dbManager(db_host, db_user, db_pass, db_schm);
@@ -49,6 +49,9 @@
 	- add fetch_object() support
 	v1.3
 	- add function query_prepare($sql, $params);
+	v1.4
+	- add query counter ( public variable : $query_count )
+	- add current login user & server info ( see function : get_connection_info() )
 	
 	== Program History ==================
 	original dbManager for MySQL by Raptor Kwok
@@ -63,6 +66,9 @@ class dbManager {
 	public $error = NULL;
 	public $debugMode = TRUE;
 	public $mysqli;
+	public $query_count = 0;
+	private $connected_server;
+	private $connected_user;
 	
 	public function __construct($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE, $port = 3306, $persistent = FALSE) {
 		$this->debugMode = $_debugMode;
@@ -85,6 +91,9 @@ class dbManager {
 				return $mysqli->connect_error;
 			}
 		}
+		// added in v1.4 : connected server & user info
+		$this->connected_server = $host . ':' . $port;
+		$this->connected_user = $user;
 		$this->mysqli->autocommit($autoCommit);
 		if(!$this->mysqli->set_charset($charSet)){
 			$this->mysqli->set_charset('utf8');
@@ -97,10 +106,15 @@ class dbManager {
 	}
 	public function query_prepare($sql, $params, $report_error = NULL, &$error_msg = '') {
 		if($this->error !== NULL){
+
 			if($this->debugMode){
+
 				echo 'MySQL connection error!';
+
 			}
+
 			return FALSE;
+
 		}
 		$stmt = $this->mysqli->prepare($sql);
 		if($stmt !== FALSE) {
@@ -117,14 +131,19 @@ class dbManager {
 				return $stmt->get_result();
 			} else {
 				$fields = array();
+
 				$results = array();
 				
 				$stmt->store_result();
 				$meta = $stmt->result_metadata();
 				while ($field = $meta->fetch_field()) {
+
 					$var = $field->name;
+
 					$$var = null;
+
 					$fields[$var] = &$$var;
+
 				}
 				call_user_func_array(array($stmt,'bind_result'),$fields);
 				$i = 0;
@@ -141,17 +160,29 @@ class dbManager {
 			}
 		} else {
 			if($report_error === NULL){
+
 				$report_error = $this->debugMode;
+
 			}
+
 			if($report_error === TRUE){
+
 				$err_msg  = 'MySQL error: ' . $this->mysqli->error . "\n";
+
 				$err_msg .= 'Query: ' . $sql;
+
 				die($err_msg);
+
 			}elseif($error_msg != ''){
+
 				$error_msg = $this->mysqli->error;
+
 				return FALSE;
+
 			}else{
+
 				return FALSE;
+
 			}
 		}
 	}
@@ -164,6 +195,7 @@ class dbManager {
 			return FALSE;
 		}
 		$resultset = $this->mysqli->query($sql);
+		$this->query_count++;
 		if($resultset === FALSE) {
 			if($report_error === NULL){
 				$report_error = $this->debugMode;
@@ -206,13 +238,13 @@ class dbManager {
 				$out_value = $rs->fetch_field();
 				break;
 			case 'num_rows_affected':
-				$out_value = $this->mysqli->affected_rows;
+				$out_value = (int)$this->mysqli->affected_rows;
 				break;
 			case 'num_fields':
-				$out_value = $rs->field_count;
+				$out_value = (int)$rs->field_count;
 				break;
 			case 'num_rows':
-				$out_value = $rs->num_rows;
+				$out_value = (int)$rs->num_rows;
 				break;
 			default:
 				$out_value = $rs->fetch_assoc();
@@ -227,7 +259,7 @@ class dbManager {
 		return $this->mysqli->real_escape_string($str);
 	}
 	public function insert_id(){
-		return $this->mysqli->insert_id;
+		return (int)$this->mysqli->insert_id;
 	}
 	public function close() {
 		return $this->mysqli->close();
@@ -263,6 +295,9 @@ class dbManager {
 			return NULL;
 		}
 		return $stmt;
+	}
+	public function get_connection_info() {
+		return array('server' => $this->connected_server , 'user' => $this->connected_user);
 	}
 }
 
