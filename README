@@ -1,5 +1,5 @@
 //=====================//
-// PHP-DB-Manager v1.3 //
+// PHP-DB-Manager v1.4 //
 //=====================//
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
 Features:
@@ -124,6 +124,9 @@ v1.2
 - add fetch_object() support
 v1.3
 - add function query_prepare($sql, $params);
+v1.4
+- add query counter ( public variable : $query_count )
+- add current login user & server info ( see function : get_connection_info() )
 
 == Program History ==================
 original dbManager for MySQL by Raptor Kwok
