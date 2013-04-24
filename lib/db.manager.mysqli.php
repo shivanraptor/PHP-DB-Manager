@@ -1,6 +1,6 @@
 <?php
 /*
-	dbManager for Mysqli v1.4
+	dbManager for Mysqli v1.5
 	== Usage ============================
 	1. Backward compatible version:
 	   $db = new dbManager(db_host, db_user, db_pass, db_schm);
@@ -52,6 +52,12 @@
 	v1.4
 	- add query counter ( public variable : $query_count )
 	- add current login user & server info ( see function : get_connection_info() )
+	v1.5
+	- add shortcut function combining $db->query & $db->result
+	- centralize error message processing
+	- error message respecting Content-Type
+	v1.6 ( Coming Soon )
+	- add PDO support
 	
 	== Program History ==================
 	original dbManager for MySQL by Raptor Kwok
@@ -69,6 +75,7 @@ class dbManager {
 	public $query_count = 0;
 	private $connected_server;
 	private $connected_user;
+	private $library_name = 'PHP DB Manager';
 	
 	public function __construct($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE, $port = 3306, $persistent = FALSE) {
 		$this->debugMode = $_debugMode;
@@ -86,7 +93,7 @@ class dbManager {
 		$this->mysqli = new mysqli($host, $user, $pass, $dbname, $port);
 		if ($this->mysqli->connect_error !== NULL) {
 			if($this->debugMode){
-				die('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
+				$this->halt('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
 			}else{
 				return $mysqli->connect_error;
 			}
@@ -99,22 +106,16 @@ class dbManager {
 			$this->mysqli->set_charset('utf8');
 		}
 		return NULL;
-
 	}
 	public function select_db($dbname) {
 		return $this->mysqli->select_db($dbname);
 	}
 	public function query_prepare($sql, $params, $report_error = NULL, &$error_msg = '') {
 		if($this->error !== NULL){
-
 			if($this->debugMode){
-
-				echo 'MySQL connection error!';
-
+				$this->halt('MySQL connection error!');
 			}
-
 			return FALSE;
-
 		}
 		$stmt = $this->mysqli->prepare($sql);
 		if($stmt !== FALSE) {
@@ -131,19 +132,13 @@ class dbManager {
 				return $stmt->get_result();
 			} else {
 				$fields = array();
-
 				$results = array();
-				
 				$stmt->store_result();
 				$meta = $stmt->result_metadata();
 				while ($field = $meta->fetch_field()) {
-
 					$var = $field->name;
-
 					$$var = null;
-
 					$fields[$var] = &$$var;
-
 				}
 				call_user_func_array(array($stmt,'bind_result'),$fields);
 				$i = 0;
@@ -159,30 +154,19 @@ class dbManager {
 		        return $results;
 			}
 		} else {
-			if($report_error === NULL){
-
+			if($report_error === NULL) {
 				$report_error = $this->debugMode;
-
 			}
 
-			if($report_error === TRUE){
-
+			if($report_error === TRUE) {
 				$err_msg  = 'MySQL error: ' . $this->mysqli->error . "\n";
-
 				$err_msg .= 'Query: ' . $sql;
-
-				die($err_msg);
-
-			}elseif($error_msg != ''){
-
+				$this->halt($err_msg);
+			} elseif($error_msg != '') {
 				$error_msg = $this->mysqli->error;
-
 				return FALSE;
-
-			}else{
-
+			} else {
 				return FALSE;
-
 			}
 		}
 	}
@@ -190,7 +174,7 @@ class dbManager {
 	public function query($sql, $report_error = NULL, &$error_msg = '') {
 		if($this->error !== NULL){
 			if($this->debugMode){
-				echo 'MySQL connection error!';
+				$this->halt('MySQL connection error!');
 			}
 			return FALSE;
 		}
@@ -203,7 +187,7 @@ class dbManager {
 			if($report_error === TRUE){
 				$err_msg = 'MySQL error: ' . $this->mysqli->error . "\n";
 				$err_msg .= 'Query: ' . $sql;
-				die($err_msg);
+				$this->halt($err_msg);
 			}elseif($error_msg != ''){
 				$error_msg = $this->mysqli->error;
 				return FALSE;
@@ -217,7 +201,7 @@ class dbManager {
 	public function result($rs, $type = 'assoc') {
 		if($this->error !== NULL){
 			if($this->debugMode){
-				echo 'MySQL connection error!';
+				$this->halt('MySQL connection error!');
 			}
 			return FALSE;
 		}
@@ -255,6 +239,31 @@ class dbManager {
 		}
 		return $out_value;
 	}
+	// introduced in v1.5
+	public function rs($sql, $extended_info = false) {
+		if($extended_info === TRUE) {
+			$start_time = microtime(true);
+			$result = array();
+			$rs = $this->query($sql);
+			$result_array = array();
+			while($row = $this->result($rs)) {
+				$result_array[] = $row;
+			}
+			$result['rs'] = $result_array;
+			$result['num_rows'] = $this->result($rs, 'num_rows');
+			$end_time = microtime(true);
+			$result['exec_time'] = ($end_time - $start_time);
+			return $result;
+		} else {
+			$rs = $this->query($sql);
+			$result = array();
+			while($row = $this->result($rs)) {
+				$result[] = $row;
+			}
+			return $result;
+		}
+	}
+	
 	public function escape_string($str){
 		return $this->mysqli->real_escape_string($str);
 	}
@@ -268,10 +277,21 @@ class dbManager {
 		return $this->mysqli->server_info;
 	}
 	public function halt($message = '') {
-		if($message == '')
-			die('MySQL query error');
-		else
+		$content_type = $this->get_content_type();
+		if($message == '') {
+			$message = '[' . $this->library_name . '] Error: MySQL Query Error';
+		} else {
+			if($content_type === 'text/html') {
+				$message = str_replace("\n", '<br />', $message);
+				$message = str_replace(PHP_EOL, '<br />', $message);
+			}
+			$message = '[' . $this->library_name . '] ' . $message;
+		}
+		if($content_type === 'text/html') {
+			die('<p style="font-weight: bold; color: #F00; font-family: Arial; font-size: 11px;">' . $message . '</p>');
+		} else {
 			die($message);
+		}
 	}
 	public function free($rs) {
 		return @$rs->close();
@@ -298,6 +318,22 @@ class dbManager {
 	}
 	public function get_connection_info() {
 		return array('server' => $this->connected_server , 'user' => $this->connected_user);
+	}
+	// =======================
+	// Helper Functions
+	// =======================
+	private function get_content_type() {
+		$headers = headers_list();
+		foreach($headers as $index => $value) {
+			list($key, $value) = explode(': ', $value);
+			unset($headers[$index]);
+			$headers[$key] = $value;
+		}
+		if(isset($headers['Content-Type'])) {
+			return $headers['Content-Type'];
+		} else {
+			return 'text/html';
+		}
 	}
 }
 

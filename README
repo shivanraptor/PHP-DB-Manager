@@ -1,5 +1,5 @@
 //=====================//
-// PHP-DB-Manager v1.4 //
+// PHP-DB-Manager v1.5 //
 //=====================//
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
 Features:
@@ -9,6 +9,11 @@ Features:
 - Support MySQLi PHP driver
 - Support MSSQL PHP driver ( new in v1.2 )
 - Support custom port
+- Query Count information ( new in v1.4 )
+- Connection information ( new in v1.4 )
+
+Coming Soon Features:
+- PDO support ( will be introduced in v1.6 )
 
 Requirements:
 - PHP v5.0+ ( v5.3+ recommended )
@@ -62,6 +67,14 @@ $db = new dbManager(db_host, db_user, db_pass, db_schm);
 $sql = "SELECT * FROM " . db_prefix . "example";
 $rs = $db->query($sql);
 while($row = $db->result($rs)) {
+	// do your action here, for example...
+	echo $row['action_id'];
+}
+
+// DBManager - Query & Get the result ( Shortcut , new in v1.5 )
+$sql = "SELECT * FROM " . db_prefix . "example";
+$rows = $db->rs($sql);
+foreach($rows as $row) {
 	// do your action here, for example...
 	echo $row['action_id'];
 }
@@ -127,6 +140,12 @@ v1.3
 v1.4
 - add query counter ( public variable : $query_count )
 - add current login user & server info ( see function : get_connection_info() )
+v1.5
+- add shortcut function combining $db->query & $db->result
+- centralize error message processing
+- error message respecting Content-Type
+v1.6 ( Coming Soon )
+- add PDO support
 
 == Program History ==================
 original dbManager for MySQL by Raptor Kwok
@@ -137,3 +156,5 @@ Feel free to use, but kindly leave this statement here.
 
 == Technical Support ================
 findme@raptor.hk ( please specify dbManager for MySQLi )
+or
+ask in Stack Overflow using tag : php-db-manager
