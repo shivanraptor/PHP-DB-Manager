@@ -1,6 +1,18 @@
 {
     "name": "shivanraptor/php-db-manager",
+    "type": "library",
     "description": "Easy-to-use wrapper for MySQL database",
+    "keywords": ["mysql", "wrapper"],
+    "homepage": "http://raptor.hk/php-db-manager",
+    "license": "MIT",
+    "authors": [
+    	{
+    		"name": "Raptor K",
+    		"email": "findme@raptor.hk",
+    		"homepage": "http://raptor.hk",
+    		"role": "Developer"
+    	}
+    ],
     "require": {
         "php": ">=5.3.0",
         "apache/log4php": ">=2.3.0"
