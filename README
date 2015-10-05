@@ -1,43 +1,80 @@
 //=====================//
-// PHP-DB-Manager v1.5 //
+// PHP-DB-Manager      //
 //=====================//
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
 Features:
 - UTF-8 Connection
 - Support Transaction
-- Support Prepared Statement ( new in v1.3 )
 - Support MySQLi PHP driver
-- Support MSSQL PHP driver ( new in v1.2 )
 - Support custom port
-- Query Count information ( new in v1.4 )
-- Connection information ( new in v1.4 )
+- Query Count information
+- Connection information
 
 Coming Soon Features:
-- PDO support ( will be introduced in v1.6 )
+- PDO support
 
 Requirements:
-- PHP v5.0+ ( v5.3+ recommended )
+- PHP v5.3+
 - MySQL v4.1+
 - PHP MySQLi module enabled
 
-== 3-Step Easy Setup ================
+== 5-Step Easy Setup ================
 
 Step 1:
-Put the "lib" folder at the same folder of your PHP code
+Install Composer by issuing the following command in your project root:
+
+    curl -s http://getcomposer.org/installer | php
+
 
 Step 2:
-Open "lib/config.inc.php" to configure the connection parameters to MySQL database
-Parameters explained:
-db_user : user name of MySQL database account
-db_pass : password of MySQL database account
-db_host : host name / IP of MySQL database ( in most cases, it is "localhost" )
-db_schm : the desired schema of MySQL database
-db_encoding : encoding of MySQL database connection
-db_prefix : table prefix of MySQL database tables ( see Example 1 below )
+create a composer.json configuration file in the same folder, with the following contents:
 
+    {
+      "require": {
+        "shivanraptor/php-db-manager": ">=1.0"
+      }
+    }
+    
 Step 3:
-Include the DB Manager to your codes and follow the sample codes to write your logic
+Execute the following command to install the library:
 
+    php composer.phar install
+
+
+Step 4:
+Create a "config.db.inc.php" in "conf/" folder to configure the connection parameters to MySQL database
+
+    <?php 
+    $db_settings = array(
+    	'DB_ENCODING' 		=> 'utf8',
+    	'DB_HOST' 			=> 'localhost',
+    	'DB_SCHEMA' 		=> 'your_schema',
+    	'DB_USERNAME' 		=> 'root',
+    	'DB_PASSWORD' 		=> 'your_password',
+    	'DB_PREFIX' 		=> 'test_',
+    );
+    while (list($key, $value) = each($db_settings)) {
+    	define($key, $value);
+    }
+    ?>
+
+Parameters explained:
+DB_USERNAME : user name of MySQL database account
+DB_PASSWORD : password of MySQL database account
+DB_HOST 	: host name / IP of MySQL database ( in most cases, it is "localhost" )
+DB_SCHEMA 	: the desired schema of MySQL database
+DB_ENCODING : encoding of MySQL database connection
+DB_PREFIX 	: table prefix of MySQL database tables ( see Example 1 below )
+
+
+Step 5:
+Include the DB Manager to your codes and follow the sample codes to write your logic:
+
+    // Use Composer to autoload DB Manager
+    require_once('vendor/autoload.php');
+    // Require the Configuration file
+    require_once('conf/config.db.inc.php');
+    
 
 == Parameters of constructor ========
 
@@ -56,53 +93,55 @@ persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disa
 // Example 1: Simple SELECT action
 // -------------------------------
 
-// DBManager - Include the Library
-require_once('lib/config.inc.php');
-require_once('lib/db.manager.mysqli.php');
+    // Use Composer to autoload DB Manager
+    require_once('vendor/autoload.php');
+    // Require the Configuration file
+    require_once('conf/config.db.inc.php');
 
-// DBManager - Initialization
-$db = new dbManager(db_host, db_user, db_pass, db_schm);
+    // Initialization
+    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
 
-// DBManager - Query & Get the result
-$sql = "SELECT * FROM " . db_prefix . "example";
-$rs = $db->query($sql);
-while($row = $db->result($rs)) {
-	// do your action here, for example...
-	echo $row['action_id'];
-}
+    // Query & Get the result
+    $sql = "SELECT * FROM " . DB_PREFIX . "example";
+    $rs = $db->query($sql);
+    while($row = $db->result($rs)) {
+    	// do your action here, for example...
+    	echo $row['action_id'];
+    }
 
-// DBManager - Query & Get the result ( Shortcut , new in v1.5 )
-$sql = "SELECT * FROM " . db_prefix . "example";
-$rows = $db->rs($sql);
-foreach($rows as $row) {
-	// do your action here, for example...
-	echo $row['action_id'];
-}
+    // Query & Get the result
+    $sql = "SELECT * FROM " . DB_PREFIX . "example";
+    $rows = $db->rs($sql);
+    foreach($rows as $row) {
+    	// do your action here, for example...
+    	echo $row['action_id'];
+    }
 
 // -------------------------------
 // Example 2: Simple INSERT action
 // -------------------------------
-// DBManager - Include the Library
-require_once('lib/config.inc.php');
-require_once('lib/db.manager.mysqli.php');
+    // Use Composer to autoload DB Manager
+    require_once('vendor/autoload.php');
+    // Require the Configuration file
+    require_once('conf/config.db.inc.php');
 
-// DBManager - Initialization
-$db = new dbManager(db_host, db_user, db_pass, db_schm);
+    // Initialization
+    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
 
-// DBManager - Query & Get the result
-$sql = "INSERT INTO tbl_example VALUES ($value1, '$value2')";
-$db->query($sql);
+    // DBManager - Query & Get the result
+    $sql = "INSERT INTO tbl_example VALUES ($value1, '$value2')";
+    $db->query($sql);
 
-$row_id = $db->insert_id();
+    $row_id = $db->insert_id();
 
 
 == Other Functions ==================
 
 1. Backward compatible version:
-   $db = new dbManager(db_host, db_user, db_pass, db_schm);
+   $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
    
 2. Support of charaset, disable debug message
-   $db = new dbManager(db_host, db_user, db_pass, db_schm, FALSE, 'utf8');
+   $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA, FALSE, 'utf8');
    
 3. To check connection error:
    if($db->error !== NULL) {
@@ -130,31 +169,8 @@ $row_id = $db->insert_id();
 == Version History ==================
 v1.0
 - initial release
-v1.1
-- add custom server port support
-- add persistent connection support
-v1.2
-- add fetch_object() support
-v1.3
-- add function query_prepare($sql, $params);
-v1.4
-- add query counter ( public variable : $query_count )
-- add current login user & server info ( see function : get_connection_info() )
-v1.5
-- add shortcut function combining $db->query & $db->result
-- centralize error message processing
-- error message respecting Content-Type
-v1.6 ( Coming Soon )
-- add PDO support
-
-== Program History ==================
-original dbManager for MySQL by Raptor Kwok
-original dbManager for MySQLi by Hoyu
-
-Feel free to use, but kindly leave this statement here.
-
 
 == Technical Support ================
-findme@raptor.hk ( please specify dbManager for MySQLi )
+findme@raptor.hk ( please specify email subject: "dbManager for MySQLi" )
 or
 ask in Stack Overflow using tag : php-db-manager

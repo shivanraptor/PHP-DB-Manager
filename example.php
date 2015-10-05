@@ -1,7 +1,9 @@
 <?php
-require_once('lib/config.inc.php');
-require_once('lib/db.manager.mysqli.php');
-$db = new dbManager(db_host, db_user, db_pass, db_schm);
+// Use Composer to autoload DB Manager
+require_once('vendor/autoload.php');
+// Require the Configuration file
+require_once('conf/config.db.inc.php');
+$db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
 ?>
 <!DOCTYPE html>
 <html>
