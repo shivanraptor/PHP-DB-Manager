@@ -1,6 +1,5 @@
-//=====================//
-// PHP-DB-Manager      //
-//=====================//
+PHP-DB-Manager
+==============
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
 Features:
 - UTF-8 Connection
@@ -14,11 +13,12 @@ Coming Soon Features:
 - PDO support
 
 Requirements:
-- PHP v5.3+
+- PHP v5.3+ (Compatible with PHP7)
 - MySQL v4.1+
 - PHP MySQLi module enabled
 
-== 5-Step Easy Setup ================
+QUICK START
+-----------
 
 Step 1:
 Install Composer by issuing the following command in your project root:
@@ -42,7 +42,7 @@ Execute the following command to install the library:
 
 
 Step 4:
-Create a "config.db.inc.php" in "conf/" folder to configure the connection parameters to MySQL database
+Create a `config.db.inc.php` in `conf/` folder to configure the connection parameters to MySQL database
 
     <?php 
     $db_settings = array(
@@ -59,12 +59,13 @@ Create a "config.db.inc.php" in "conf/" folder to configure the connection param
     ?>
 
 Parameters explained:
-DB_USERNAME : user name of MySQL database account
-DB_PASSWORD : password of MySQL database account
-DB_HOST 	: host name / IP of MySQL database ( in most cases, it is "localhost" )
-DB_SCHEMA 	: the desired schema of MySQL database
-DB_ENCODING : encoding of MySQL database connection
-DB_PREFIX 	: table prefix of MySQL database tables ( see Example 1 below )
+
+    DB_USERNAME : user name of MySQL database account
+    DB_PASSWORD : password of MySQL database account
+    DB_HOST 	: host name / IP of MySQL database ( in most cases, it is "localhost" )
+    DB_SCHEMA 	: the desired schema of MySQL database
+    DB_ENCODING : encoding of MySQL database connection
+    DB_PREFIX 	: table prefix of MySQL database tables ( see Example 1 below )
 
 
 Step 5:
@@ -76,22 +77,24 @@ Include the DB Manager to your codes and follow the sample codes to write your l
     require_once('conf/config.db.inc.php');
     
 
-== Parameters of constructor ========
+Parameters of Constructor
+-------------------------
 
-host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
-user 		: Username
-pass		: Password
-_debugMode	: Debug mode ( set TRUE to enable , set FALSE to disable )
-charSet		: Character set of connection ( defaults to UTF-8 )
-autoCommit	: Transaction Auto Commit mode ( set TRUE to enable , set FALSE to disable )
-port		: Server Port of MySQL server ( defaults to 3306 , standard port of MySQL server )
-persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disable )
+    host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
+    user 		: Username
+    pass		: Password
+    _debugMode		: Debug mode ( set TRUE to enable , set FALSE to disable )
+    charSet		: Character set of connection ( defaults to UTF-8 )
+    autoCommit		: Transaction Auto Commit mode ( set TRUE to enable , set FALSE to disable )
+    port		: Server Port of MySQL server ( defaults to 3306 , standard port of MySQL server )
+    persistent		: Persistent Connection mode ( set TRUE to enable , set FALSE to disable )
 
 
-== Sample Code ======================
-// -------------------------------
-// Example 1: Simple SELECT action
-// -------------------------------
+Sample Codes
+============
+
+Example 1: Simple SELECT action
+-------------------------------
 
     // Use Composer to autoload DB Manager
     require_once('vendor/autoload.php');
@@ -117,9 +120,9 @@ persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disa
     	echo $row['action_id'];
     }
 
-// -------------------------------
-// Example 2: Simple INSERT action
-// -------------------------------
+Example 2: Simple INSERT action
+-------------------------------
+
     // Use Composer to autoload DB Manager
     require_once('vendor/autoload.php');
     // Require the Configuration file
@@ -135,7 +138,8 @@ persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disa
     $row_id = $db->insert_id();
 
 
-== Other Functions ==================
+Other Functions
+===============
 
 1. Backward compatible version:
    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
@@ -166,11 +170,13 @@ persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disa
 	   }
    }
 
-== Version History ==================
+Version History
+===============
 v1.0
 - initial release
 
-== Technical Support ================
+Technical Support 
+=================
 findme@raptor.hk ( please specify email subject: "dbManager for MySQLi" )
 or
-ask in Stack Overflow using tag : php-db-manager
+ask in Stack Overflow using tag : `php-db-manager`
