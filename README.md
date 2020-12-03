@@ -142,24 +142,36 @@ Other Functions
 ===============
 
 1. Backward compatible version:
+
    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
    
+   
 2. Support of charaset, disable debug message
+
    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA, FALSE, 'utf8');
    
+   
 3. To check connection error:
+
    if($db->error !== NULL) {
 	   // error exists
    }
    
-4. Escape String
-   $db->escape_string($str);
    
-5. Use MySQLi PHP functions directly, e.g. mysqli::rollback()
+4. Escape String
+
+   $db->escape_string($str);
+
+
+5. Use MySQLi PHP functions directly, e.g. `mysqli::rollback()`
+
    $db->mysqli->rollback();
+   
+   
 6. Prepared Statement
+
    $sql = "SELECT field_name1, field_name2 FROM table_name WHERE id = ?"; 	// cannot use "SELECT *"
-   $params = array('i' => 1); 												// i = integer , d = double , s = string , b = blob
+   $params = array('i' => 1); 							// i = integer , d = double , s = string , b = blob
    $result = $db->query_prepare($sql, $params);
    if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
 	   $row = $db->result($result);
@@ -169,6 +181,7 @@ Other Functions
 		   echo $row['field_name1'] . ' ' .$row['field_name2'];
 	   }
    }
+
 
 Version History
 ===============
@@ -180,3 +193,15 @@ Technical Support
 findme@raptor.hk ( please specify email subject: "dbManager for MySQLi" )
 or
 ask in Stack Overflow using tag : `php-db-manager`
+
+COPYRIGHT
+=================
+Copyright (c) 2009 Raptor K
+
+
+SUPPORT US
+=================
+You can donate via [PayPal](https://paypal.me/YourAppApp).
+
+    BTC: 1D1fxiG6B7GL4Cr14MpR7N7uJBemXo7nKK
+    ETH: 0x740Ed7bBE8d287D0dC0477D6118962fcF600c4cc
