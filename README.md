@@ -1,5 +1,8 @@
 PHP-DB-Manager
 ==============
+[![CodeFactor](https://www.codefactor.io/repository/github/shivanraptor/php-db-manager/badge)](https://www.codefactor.io/repository/github/shivanraptor/php-db-manager)
+[![LoC](https://tokei.rs/b1/github/shivanraptor/php-db-manager?category=code)](https://tokei.rs/b1/github/shivanraptor/php-db-manager?category=code)
+
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
 Features:
 - UTF-8 Connection
