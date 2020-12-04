@@ -1,6 +1,6 @@
 <?php
 /*
-	dbManager for MSSQL v1.2
+	dbManager for MSSQL v1.3
 	== Usage ============================
 	1. Backward compatible version:
 	   $db = new dbManager(db_host, db_user, db_pass, db_schm);
@@ -88,22 +88,6 @@ class dbManager {
 			$this->query('SET ANSI_WARNINGS ON');
 		}
 	}
-	/*public function dbManager($host, $user, $pass, $dbname = '', $port = 1433, $persistent = TRUE, $driver = self::DRIVER_MSSQL) {
-		if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-			$this->os = self::OS_WINDOWS;
-		} else {
-			$this->os = self::OS_LINUX;
-		}
-		$this->driver = $driver;
-		$this->error = $this->connect($host, $user, $pass, $dbname, $port, $persistent);
-		if($this->error !== null) {
-			$this->halt($this->error);
-		} else {
-			// Required for Heterogeneous queries on older servers (e.g. SQL Server 2005)
-			$this->query('SET ANSI_NULLS ON');
-			$this->query('SET ANSI_WARNINGS ON');
-		}
-	}*/
 	
 	// return only error
 	public function connect($host, $user, $pass, $dbname, $port, $persistent = TRUE) {
@@ -184,7 +168,7 @@ class dbManager {
 			return FALSE;
 		}
 		if($this->link === null) {
-			die('Query Error: Please make server connection first');
+			throw new Exception('Query Error: Please make server connection first');
 		}
 		$resultset = null;
 		switch($this->driver) {
@@ -211,7 +195,7 @@ class dbManager {
 						$resultset = $stmt; // Copy PDOStatement into $resultset for further handling
 					}
 				} catch(PDOException $e) {
-					die('PDO Execution Error: ' . $e->getMessage());
+					throw new Exception('PDO Execution Error: ' . $e->getMessage());
 				}
 				break;
 		}
@@ -355,7 +339,8 @@ class dbManager {
 						$out_value = sqlsrv_num_rows($rs);
 						break;
 					case self::DRIVER_PDO:
-						$out_value = $rs->rowCount();  // PDO may not have accurate rowCount() for certain drivers
+						$out_value = $rs->rowCount();  
+						// Note: PDO may not have accurate rowCount() for certain drivers
 						break;
 				}
 				break;
@@ -390,7 +375,6 @@ class dbManager {
 	}
 	
 	public function escape_string($data){
-		// ref: http://stackoverflow.com/questions/574805/how-to-escape-strings-in-mssql-using-php
 		if ( !isset($data) or empty($data) ) {
 			return '';
 		}
@@ -423,12 +407,10 @@ class dbManager {
 		switch($this->driver) {
 			case self::DRIVER_MSSQL:
 				return mssql_close($this->link);
-				break;
 			case self::DRIVER_SQLSRV:
 				return sqlsrv_close($this->link);
-				break;
 			case self::DRIVER_PDO:
-				$this->link = null; // Well, PDO uses Connection = Null to close it. Bad Pattern.
+				$this->link = null;
 				break;
 		}
 	}
@@ -443,14 +425,14 @@ class dbManager {
 			case self::DRIVER_PDO:
 				break;
 		}
-		return 'Not Implemented';
+		throw new Exception('Function not implemented');
 	}
 	
 	public function halt($message = '') {
 		if($message == '') {
-			die('MSSQL query error');
+			throw new Exception('MSSQL query error');
 		} else {
-			die($message);
+			throw new Exception($message);
 		}
 	}
 	
