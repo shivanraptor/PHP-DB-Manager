@@ -1,6 +1,5 @@
 PHP-DB-Manager
 ==============
-[![CodeFactor](https://www.codefactor.io/repository/github/shivanraptor/php-db-manager/badge)](https://www.codefactor.io/repository/github/shivanraptor/php-db-manager)
 [![LoC](https://tokei.rs/b1/github/shivanraptor/php-db-manager?category=code)](https://tokei.rs/b1/github/shivanraptor/php-db-manager?category=code)
 
 PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
@@ -173,6 +172,7 @@ Other Functions
 
 6. Prepared Statement
 
+   ```
    $sql = "SELECT field_name1, field_name2 FROM table_name WHERE id = ?"; 	// cannot use "SELECT *"
    $params = array('i' => 1); 							// i = integer , d = double , s = string , b = blob
    $result = $db->query_prepare($sql, $params);
@@ -184,12 +184,14 @@ Other Functions
 		   echo $row['field_name1'] . ' ' .$row['field_name2'];
 	   }
    }
-
+   ```
 
 Version History
 ===============
 v1.0
 - initial release
+v1.0.1
+- bug fix
 v1.6
 - Remove log4php dependencies
 
