@@ -17,7 +17,7 @@ Coming Soon Features:
 
 Requirements:
 - PHP v5.3+ (Compatible with PHP7)
-- MySQL v4.1+
+- MySQL v4.1+ (tested on MySQL 8.0)
 - PHP MySQLi module enabled
 
 QUICK START
@@ -37,7 +37,7 @@ create a composer.json configuration file in the same folder, with the following
         "shivanraptor/php-db-manager": ">=1.0"
       }
     }
-    
+
 Step 3:
 Execute the following command to install the library:
 
@@ -47,7 +47,7 @@ Execute the following command to install the library:
 Step 4:
 Create a `config.db.inc.php` in `conf/` folder to configure the connection parameters to MySQL database
 
-    <?php 
+    <?php
     $db_settings = array(
     	'DB_ENCODING' 		=> 'utf8',
     	'DB_HOST' 			=> 'localhost',
@@ -78,7 +78,7 @@ Include the DB Manager to your codes and follow the sample codes to write your l
     require_once('vendor/autoload.php');
     // Require the Configuration file
     require_once('conf/config.db.inc.php');
-    
+
 
 Parameters of Constructor
 -------------------------
@@ -147,20 +147,20 @@ Other Functions
 1. Backward compatible version:
 
    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
-   
-   
+
+
 2. Support of charaset, disable debug message
 
-   $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA, FALSE, 'utf8');
-   
-   
+   $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA, FALSE, 'utf8mb4');
+
+
 3. To check connection error:
 
    if($db->error !== NULL) {
 	   // error exists
    }
-   
-   
+
+
 4. Escape String
 
    $db->escape_string($str);
@@ -169,8 +169,8 @@ Other Functions
 5. Use MySQLi PHP functions directly, e.g. `mysqli::rollback()`
 
    $db->mysqli->rollback();
-   
-   
+
+
 6. Prepared Statement
 
    $sql = "SELECT field_name1, field_name2 FROM table_name WHERE id = ?"; 	// cannot use "SELECT *"
@@ -190,8 +190,10 @@ Version History
 ===============
 v1.0
 - initial release
+v1.6
+- Remove log4php dependencies
 
-Technical Support 
+Technical Support
 =================
 findme@raptor.hk ( please specify email subject: "dbManager for MySQLi" )
 or

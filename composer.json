@@ -2,7 +2,7 @@
     "name": "shivanraptor/php-db-manager",
     "type": "library",
     "description": "Easy-to-use PHP wrapper for MySQL database",
-    "keywords": ["mysql", "wrapper"],
+    "keywords": ["mysql", "mysqli", "mariadb","wrapper"],
     "homepage": "https://github.com/shivanraptor/PHP-DB-Manager",
     "license": "MIT",
     "authors": [

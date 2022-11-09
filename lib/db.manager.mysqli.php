@@ -1,6 +1,6 @@
 <?php
 /*
-	dbManager for Mysqli v1.5
+	dbManager for Mysqli v1.6
 	== Usage ============================
 	1. Backward compatible version:
 	   $db = new dbManager(db_host, db_user, db_pass, db_schm);
@@ -27,7 +27,7 @@
 		   	   echo $row['field_name1'] . ' ' .$row['field_name2'];
 		   }
 	   }
-	   
+
 	Parameters of constructor:
 	host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
 	user 		: Username
@@ -37,8 +37,8 @@
 	autoCommit	: Transaction Auto Commit mode ( set TRUE to enable , set FALSE to disable )
 	port		: Server Port of MySQL server ( defaults to 3306 , standard port of MySQL server )
 	persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disable )
-	
-	
+
+
 	== Version History ==================
 	v1.0
 	- initial release
@@ -58,13 +58,13 @@
 	- error message respecting Content-Type
 	v1.6 ( Coming Soon )
 	- add PDO support
-	
+
 	== Program History ==================
 	original dbManager for MySQL by Raptor Kwok
 	original dbManager for MySQLi by Hoyu
-	
+
 	Feel free to use, but kindly leave this statement here.
-	
+
 	Technical Support : findme@raptor.hk ( please specify "dbManager for MySQLi" in title )
 */
 
@@ -76,7 +76,7 @@ class dbManager {
 	private $connected_server;
 	private $connected_user;
 	private $library_name = 'PHP DB Manager';
-	
+
 	public function __construct($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE, $port = 3306, $persistent = FALSE) {
 		$this->debugMode = $_debugMode;
 		$this->error = $this->connect($host, $user, $pass, $dbname, $persistent ,$charSet, $autoCommit, $port);
@@ -85,7 +85,7 @@ class dbManager {
 		$this->debugMode = $_debugMode;
 		$this->connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit, $port);
 	}
-	
+
 	public function connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit, $port) {
 		if($persistent === true) {
 			$host = 'p:' . $host;
@@ -127,7 +127,7 @@ class dbManager {
 			}
 			call_user_func_array(array($stmt, 'bind_param'), array_merge(array($types), $values));
 			$stmt->execute();
-			
+
 			if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
 				return $stmt->get_result();
 			} else {
@@ -148,7 +148,7 @@ class dbManager {
 		                $results[$i][$k] = $v;
 		            $i++;
 		        }
-		
+
 		        // close statement
 		        $stmt->close();
 		        return $results;
@@ -170,7 +170,7 @@ class dbManager {
 			}
 		}
 	}
-	
+
 	public function query($sql, $report_error = NULL, &$error_msg = '') {
 		if($this->error !== NULL){
 			if($this->debugMode){
@@ -194,7 +194,7 @@ class dbManager {
 			}else{
 				return FALSE;
 			}
-			
+
 		}
 		return $resultset;
 	}
@@ -263,7 +263,7 @@ class dbManager {
 			return $result;
 		}
 	}
-	
+
 	public function escape_string($str){
 		return $this->mysqli->real_escape_string($str);
 	}
