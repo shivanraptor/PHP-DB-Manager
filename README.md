@@ -1,214 +1,226 @@
-PHP-DB-Manager
-==============
+# PHP-DB-Manager
+
 [![LoC](https://tokei.rs/b1/github/shivanraptor/php-db-manager?category=code)](https://tokei.rs/b1/github/shivanraptor/php-db-manager?category=code)
 
-PHP DB Manager aims to provide easy-to-use wrapper for MySQL database.
-Features:
-- UTF-8 Connection
-- Support Transaction
-- Support MySQLi PHP driver
-- Support custom port
-- Query Count information
-- Connection information
+A modern PHP database wrapper for MySQL with prepared statements, connection pooling, and proper error handling.
 
-Coming Soon Features:
-- PDO support
+## Features
 
-Requirements:
-- PHP v5.3+ (Compatible with PHP7)
-- MySQL v4.1+ (tested on MySQL 8.0)
-- PHP MySQLi module enabled
+- UTF-8/UTF8MB4 Connection Support
+- Prepared Statements by Default
+- Transaction Support
+- Connection Pooling
+- Automatic Retry Mechanism
+- Proper Exception Handling
+- Type Safety
+- PSR-4 Autoloading
+- Modern PHP 7.4+ Features
 
-QUICK START
------------
+## Requirements
 
-Step 1:
-Install Composer by issuing the following command in your project root:
+- PHP 7.4 or higher
+- MySQL 5.7+ or MariaDB 10.3+
+- PHP MySQLi extension
 
-    curl -s http://getcomposer.org/installer | php
+## Installation
 
+### Using Composer
 
-Step 2:
-create a composer.json configuration file in the same folder, with the following contents:
+```bash
+composer require shivanraptor/php-db-manager
+```
 
-    {
-      "require": {
-        "shivanraptor/php-db-manager": ">=1.0"
-      }
-    }
+### Manual Installation
 
-Step 3:
-Execute the following command to install the library:
+1. Download the latest release
+2. Include the autoloader in your project:
+```php
+require_once('vendor/autoload.php');
+```
 
-    php composer.phar install
+## Quick Start
 
+```php
+use PhpDbManager\DbManager;
 
-Step 4:
-Create a `config.db.inc.php` in `conf/` folder to configure the connection parameters to MySQL database
+try {
+    $db = new DbManager([
+        'host' => 'localhost',
+        'username' => 'root',
+        'password' => 'your_password',
+        'database' => 'your_database',
+        'charset' => 'utf8mb4',
+        'port' => 3306,
+        'persistent' => false,
+        'autocommit' => true,
+        'retry_attempts' => 3,
+        'retry_delay' => 100 // milliseconds
+    ]);
 
-    <?php
-    $db_settings = array(
-    	'DB_ENCODING' 		=> 'utf8',
-    	'DB_HOST' 			=> 'localhost',
-    	'DB_SCHEMA' 		=> 'your_schema',
-    	'DB_USERNAME' 		=> 'root',
-    	'DB_PASSWORD' 		=> 'your_password',
-    	'DB_PREFIX' 		=> 'test_',
+    // Execute a prepared statement
+    $result = $db->execute(
+        "SELECT * FROM users WHERE id = ? AND status = ?",
+        ['i' => 1, 's' => 'active']
     );
-    while (list($key, $value) = each($db_settings)) {
-    	define($key, $value);
-    }
-    ?>
 
-Parameters explained:
+    // Fetch a single row
+    $user = $db->fetch($result);
 
-    DB_USERNAME : user name of MySQL database account
-    DB_PASSWORD : password of MySQL database account
-    DB_HOST 	: host name / IP of MySQL database ( in most cases, it is "localhost" )
-    DB_SCHEMA 	: the desired schema of MySQL database
-    DB_ENCODING : encoding of MySQL database connection
-    DB_PREFIX 	: table prefix of MySQL database tables ( see Example 1 below )
+    // Or fetch all rows
+    $users = $db->fetchAll($result);
 
+} catch (Exception $e) {
+    error_log('Database error: ' . $e->getMessage());
+    // Handle error appropriately
+}
+```
 
-Step 5:
-Include the DB Manager to your codes and follow the sample codes to write your logic:
+## Connection Options
 
-    // Use Composer to autoload DB Manager
-    require_once('vendor/autoload.php');
-    // Require the Configuration file
-    require_once('conf/config.db.inc.php');
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| host | string | 'localhost' | Database host |
+| username | string | - | Database username |
+| password | string | - | Database password |
+| database | string | - | Database name |
+| charset | string | 'utf8mb4' | Connection charset |
+| port | int | 3306 | Database port |
+| persistent | bool | false | Use persistent connection |
+| autocommit | bool | true | Enable autocommit |
+| timeout | int | 30 | Connection timeout in seconds |
+| retry_attempts | int | 3 | Number of connection retry attempts |
+| retry_delay | int | 100 | Delay between retries in milliseconds |
 
+## Usage Examples
 
-Parameters of Constructor
--------------------------
+### Basic Queries
 
-    host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
-    user 		: Username
-    pass		: Password
-    _debugMode		: Debug mode ( set TRUE to enable , set FALSE to disable )
-    charSet		: Character set of connection ( defaults to UTF-8 )
-    autoCommit		: Transaction Auto Commit mode ( set TRUE to enable , set FALSE to disable )
-    port		: Server Port of MySQL server ( defaults to 3306 , standard port of MySQL server )
-    persistent		: Persistent Connection mode ( set TRUE to enable , set FALSE to disable )
+```php
+// Select query
+$result = $db->execute("SELECT * FROM users WHERE id = ?", ['i' => 1]);
+$user = $db->fetch($result);
 
+// Insert query
+$db->execute(
+    "INSERT INTO users (name, email) VALUES (?, ?)",
+    ['s' => 'John Doe', 's' => 'john@example.com']
+);
+$userId = $db->lastInsertId();
 
-Sample Codes
-============
+// Update query
+$db->execute(
+    "UPDATE users SET status = ? WHERE id = ?",
+    ['s' => 'active', 'i' => 1]
+);
+$affectedRows = $db->affectedRows();
+```
 
-Example 1: Simple SELECT action
--------------------------------
+### Transactions
 
-    // Use Composer to autoload DB Manager
-    require_once('vendor/autoload.php');
-    // Require the Configuration file
-    require_once('conf/config.db.inc.php');
+```php
+try {
+    $db->beginTransaction();
+    
+    $db->execute(
+        "INSERT INTO orders (user_id, total) VALUES (?, ?)",
+        ['i' => 1, 'd' => 99.99]
+    );
+    
+    $db->execute(
+        "UPDATE inventory SET stock = stock - 1 WHERE product_id = ?",
+        ['i' => 123]
+    );
+    
+    $db->commit();
+} catch (Exception $e) {
+    $db->rollback();
+    throw $e;
+}
+```
 
-    // Initialization
-    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
+### Fetching Results
 
-    // Query & Get the result
-    $sql = "SELECT * FROM " . DB_PREFIX . "example";
-    $rs = $db->query($sql);
-    while($row = $db->result($rs)) {
-    	// do your action here, for example...
-    	echo $row['action_id'];
-    }
+```php
+// Fetch as associative array
+$result = $db->execute("SELECT * FROM users");
+$users = $db->fetchAll($result, 'assoc');
 
-    // Query & Get the result
-    $sql = "SELECT * FROM " . DB_PREFIX . "example";
-    $rows = $db->rs($sql);
-    foreach($rows as $row) {
-    	// do your action here, for example...
-    	echo $row['action_id'];
-    }
+// Fetch as object
+$result = $db->execute("SELECT * FROM users");
+$users = $db->fetchAll($result, 'object');
 
-Example 2: Simple INSERT action
--------------------------------
+// Fetch as indexed array
+$result = $db->execute("SELECT * FROM users");
+$users = $db->fetchAll($result, 'array');
+```
 
-    // Use Composer to autoload DB Manager
-    require_once('vendor/autoload.php');
-    // Require the Configuration file
-    require_once('conf/config.db.inc.php');
+### Connection Info
 
-    // Initialization
-    $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
+```php
+$info = $db->getConnectionInfo();
+echo "Connected to {$info['server']} as {$info['user']}";
+echo "MySQL version: {$info['version']}";
+echo "Charset: {$info['charset']}";
+```
 
-    // DBManager - Query & Get the result
-    $sql = "INSERT INTO tbl_example VALUES ($value1, '$value2')";
-    $db->query($sql);
+## Breaking Changes from v1.x
 
-    $row_id = $db->insert_id();
+1. **Constructor Changes**:
+```php
+// Old version
+$db = new dbManager($host, $user, $pass, $dbname);
 
+// New version
+$db = new DbManager([
+    'host' => $host,
+    'username' => $user,
+    'password' => $pass,
+    'database' => $dbname
+]);
+```
 
-Other Functions
-===============
+2. **Namespace Required**:
+```php
+use PhpDbManager\DbManager;
+```
 
-1. Backward compatible version:
+3. **Error Handling**:
+```php
+// Old version
+if ($db->error !== NULL) {
+    // error exists
+}
 
-   $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
+// New version
+try {
+    $db = new DbManager($options);
+} catch (Exception $e) {
+    // Handle error
+}
+```
 
+4. **Query Execution**:
+```php
+// Old version
+$result = $db->query_prepare($sql, $params);
+$row = $db->result($result);
 
-2. Support of charaset, disable debug message
+// New version
+$result = $db->execute($sql, $params);
+$row = $db->fetch($result);
+```
 
-   $db = new dbManager(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_SCHEMA, FALSE, 'utf8mb4');
+## Contributing
 
+1. Fork the repository
+2. Create your feature branch
+3. Run tests and code style checks
+4. Submit a pull request
 
-3. To check connection error:
+## License
 
-   if($db->error !== NULL) {
-	   // error exists
-   }
+This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Support
 
-4. Escape String
-
-   $db->escape_string($str);
-
-
-5. Use MySQLi PHP functions directly, e.g. `mysqli::rollback()`
-
-   $db->mysqli->rollback();
-
-
-6. Prepared Statement
-
-   ```
-   $sql = "SELECT field_name1, field_name2 FROM table_name WHERE id = ?"; 	// cannot use "SELECT *"
-   $params = array('i' => 1); 							// i = integer , d = double , s = string , b = blob
-   $result = $db->query_prepare($sql, $params);
-   if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
-	   $row = $db->result($result);
-	   echo $row['field_name1'];
-   } else {
-	   foreach($result as $row) {
-		   echo $row['field_name1'] . ' ' .$row['field_name2'];
-	   }
-   }
-   ```
-
-Version History
-===============
-v1.0
-- initial release
-v1.0.1
-- bug fix
-v1.6
-- Remove log4php dependencies
-
-Technical Support
-=================
-findme@raptor.hk ( please specify email subject: "dbManager for MySQLi" )
-or
-ask in Stack Overflow using tag : `php-db-manager`
-
-COPYRIGHT
-=================
-Copyright (c) 2009 Raptor K
-
-
-SUPPORT US
-=================
-You can donate via [PayPal](https://paypal.me/YourAppApp).
-
-    BTC: 1D1fxiG6B7GL4Cr14MpR7N7uJBemXo7nKK
-    ETH: 0x740Ed7bBE8d287D0dC0477D6118962fcF600c4cc
+For support, please open an issue in the GitHub repository or contact the maintainers.

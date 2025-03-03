@@ -1,124 +1,299 @@
 <?php
-class dbManagerPDO {
-	private $pdo;
+declare(strict_types=1);
+
+namespace PhpDbManager;
+
+use PDO;
+use PDOStatement;
+use PDOException;
+use RuntimeException;
+use InvalidArgumentException;
+
+/**
+ * Modern PHP Database Manager for PDO
+ * 
+ * @package PhpDbManager
+ * @version 2.0.0
+ */
+class DbManagerPDO implements DbManagerInterface
+{
+	private const DRIVER_MYSQL = 'mysql:host=%s;dbname=%s;charset=%s';
+	private const DRIVER_MSSQL_SQLSRV = 'sqlsrv:server=%s;Database=%s';
+	private const DRIVER_MSSQL = 'mssql:host=%s;Database=%s';
 	
-	const DRIVER_MYSQL = 'mysql:host=';
-	const DRIVER_MSSQL_SQLSRV = 'sqlsrv:server=';
-	const DRIVER_MSSQL = 'mssql:host=';
+	private const DB_MSSQL = 'MSSQL';
+	private const DB_MYSQL = 'MYSQL';
 	
-	const DB_MSSQL = 'MSSQL';
-	const DB_MYSQL = 'MYSQL';
+	private const DEFAULT_PORT = 3306;
+	private const DEFAULT_CHARSET = 'utf8mb4';
 	
-	public function __construct($host, $user, $pass, $dbname = '', $_debugMode = TRUE, $charSet = 'utf8', $autoCommit = TRUE, $port = 3306, $persistent = FALSE, $db_engine = self::DB_MYSQL) {
-		if($this->requirement_check() === TRUE) {
-			$dsn = '';
-			try {
-				switch($db_engine) {
-					case self::DB_MYSQL:
-						$dsn = self::DRIVER_MYSQL . $host . ';dbname=' . $dbname;
-						$this->pdo = new PDO($dsn, $user, $pass);
-						break;
-					case self::DB_MSSQL:
-						if($this->get_php_version() < 50300) {
-							$dsn = self::DRIVER_MSSQL . $host . ';Database=' . $dbname;
-							$this->pdo = new PDO($dsn, $user, $pass);
-						} else {
-							$dsn = self::DRIVER_MSSQL_SQLSRV . $host . ';Database=' . $dbname;
-							$this->pdo = new PDO($dsn, $user, $pass);
-							$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-							$this->pdo->setAttribute(PDO::SQLSRV_ATTR_QUERY_TIMEOUT, 1);
-						}
-						break;
-				}
-			} catch (PDOException $e) {
-				$this->halt($e->getMessage());
+	private ?PDO $connection = null;
+	private string $connectedServer;
+	private string $connectedUser;
+	private int $queryCount = 0;
+	private array $options;
+
+	/**
+	 * @param array $options Connection options
+	 * @throws RuntimeException If connection fails
+	 */
+	public function __construct(array $options)
+	{
+		$this->options = array_merge([
+			'host' => 'localhost',
+			'port' => self::DEFAULT_PORT,
+			'charset' => self::DEFAULT_CHARSET,
+			'persistent' => false,
+			'autocommit' => true,
+			'timeout' => 30,
+			'retry_attempts' => 3,
+			'retry_delay' => 100, // milliseconds
+			'engine' => self::DB_MYSQL,
+			'options' => [
+				PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+				PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+				PDO::ATTR_EMULATE_PREPARES => false,
+			]
+		], $options);
+
+		$this->validateOptions();
+		$this->connect();
+	}
+
+	/**
+	 * Validates connection options
+	 * @throws InvalidArgumentException
+	 */
+	private function validateOptions(): void
+	{
+		$required = ['host', 'username', 'password', 'database'];
+		foreach ($required as $field) {
+			if (empty($this->options[$field])) {
+				throw new InvalidArgumentException("Missing required option: {$field}");
 			}
 		}
 	}
 
-	public function query($sql, $report_error = NULL, &$error_msg = '') {
-		$pdo_stmt = $this->pdo->query($sql);
-		return $pdo_stmt;
+	/**
+	 * Establishes database connection with retry mechanism
+	 * @throws RuntimeException
+	 */
+	private function connect(): void 
+	{
+		$attempts = 0;
+		$lastError = null;
+
+		do {
+			try {
+				$dsn = $this->buildDsn();
+				
+				$this->connection = new PDO(
+					$dsn,
+					$this->options['username'],
+					$this->options['password'],
+					$this->options['options']
+				);
+				
+				// Store connection info
+				$this->connectedServer = "{$this->options['host']}:{$this->options['port']}";
+				$this->connectedUser = $this->options['username'];
+				
+				return;
+			} catch (PDOException $e) {
+				$lastError = $e;
+				$attempts++;
+				if ($attempts < $this->options['retry_attempts']) {
+					usleep($this->options['retry_delay'] * 1000);
+				}
+			}
+		} while ($attempts < $this->options['retry_attempts']);
+
+		throw new RuntimeException(
+			"Failed to connect after {$attempts} attempts. Last error: " . $lastError->getMessage()
+		);
 	}
-	
-	public function result($rs, $type = 'assoc') {
-		switch($type) {
-			case 'assoc':
-				$out_value = $rs->fetch(PDO::FETCH_ASSOC);
-				break;
-			/*case 'array':
-				$out_value = $rs->fetch_array();
-				break;
-			case 'row':
-				$out_value = $rs->fetch_row();
-				break;*/
-			// TODO: Support PDO::FETCH_COLUMN , PDO::FETCH_CLASS , PDO::FETCH_INTO, PDO::FETCH_BOTH , PDO::FETCH_BOUND, PDO::FETCH_LAZY, PDO::FETCH_NUM, PDO::FETCH_OBJ
-			case 'object':
-				$out_value = $rs->fetch(PDO::FETCH_OBJ);
-				break;
-			/*case 'field':
-				$out_value = $rs->fetch_field();
-				break;*/
-			case 'num_rows_affected':
-				$out_value = (int)$rs->rowCount();
-				break;
-			/*case 'num_fields':
-				$out_value = (int)$rs->field_count;
-				break;*/
-			case 'num_rows':
-				$out_value = count($rs->fetchAll());
-				break;
-			default:
-				$out_value = $rs->fetch(PDO::FETCH_ASSOC);
-				break;
+
+	/**
+	 * Builds the DSN string based on the database engine
+	 */
+	private function buildDsn(): string
+	{
+		$host = $this->options['host'];
+		$dbname = $this->options['database'];
+		$charset = $this->options['charset'];
+
+		return match($this->options['engine']) {
+			self::DB_MSSQL => sprintf(
+				$this->getPhpVersion() < 50300 ? self::DRIVER_MSSQL : self::DRIVER_MSSQL_SQLSRV,
+				$host,
+				$dbname
+			),
+			default => sprintf(
+				self::DRIVER_MYSQL,
+				$host,
+				$dbname,
+				$charset
+			)
+		};
+	}
+
+	/**
+	 * Executes a prepared statement
+	 * @param string $sql SQL query with placeholders
+	 * @param array $params Array of parameters
+	 * @return PDOStatement|bool
+	 * @throws RuntimeException
+	 */
+	public function execute(string $sql, array $params = []): PDOStatement|bool
+	{
+		try {
+			$stmt = $this->prepare($sql);
+			
+			if (!empty($params)) {
+				$stmt->execute($params);
+			} else {
+				$stmt->execute();
+			}
+			
+			$this->queryCount++;
+			return $stmt;
+		} catch (PDOException $e) {
+			throw new RuntimeException("Execute failed: " . $e->getMessage());
 		}
-		return $out_value;
 	}
-	// ================
-	// Helper Functions
-	// ================
-	private function get_php_version() {
+
+	/**
+	 * Fetches a single row
+	 * @param PDOStatement $result
+	 * @param string $type Fetch type (assoc|array|object)
+	 * @return array|object|null
+	 */
+	public function fetch(PDOStatement $result, string $type = 'assoc'): array|object|null
+	{
+		return match($type) {
+			'assoc' => $result->fetch(PDO::FETCH_ASSOC),
+			'array' => $result->fetch(PDO::FETCH_NUM),
+			'object' => $result->fetch(PDO::FETCH_OBJ),
+			default => $result->fetch(PDO::FETCH_ASSOC)
+		};
+	}
+
+	/**
+	 * Fetches all rows
+	 * @param PDOStatement $result
+	 * @param string $type Fetch type
+	 * @return array
+	 */
+	public function fetchAll(PDOStatement $result, string $type = 'assoc'): array
+	{
+		return match($type) {
+			'assoc' => $result->fetchAll(PDO::FETCH_ASSOC),
+			'array' => $result->fetchAll(PDO::FETCH_NUM),
+			'object' => $result->fetchAll(PDO::FETCH_OBJ),
+			default => $result->fetchAll(PDO::FETCH_ASSOC)
+		};
+	}
+
+	/**
+	 * Begins a transaction
+	 */
+	public function beginTransaction(): bool
+	{
+		return $this->connection->beginTransaction();
+	}
+
+	/**
+	 * Commits a transaction
+	 */
+	public function commit(): bool
+	{
+		return $this->connection->commit();
+	}
+
+	/**
+	 * Rolls back a transaction
+	 */
+	public function rollback(): bool
+	{
+		return $this->connection->rollBack();
+	}
+
+	/**
+	 * Gets the ID of the last inserted row
+	 */
+	public function lastInsertId(): int
+	{
+		return (int)$this->connection->lastInsertId();
+	}
+
+	/**
+	 * Gets the number of affected rows
+	 */
+	public function affectedRows(): int
+	{
+		return (int)$this->connection->rowCount();
+	}
+
+	/**
+	 * Gets the number of executed queries
+	 */
+	public function getQueryCount(): int
+	{
+		return $this->queryCount;
+	}
+
+	/**
+	 * Gets connection info
+	 */
+	public function getConnectionInfo(): array
+	{
+		return [
+			'server' => $this->connectedServer,
+			'user' => $this->connectedUser,
+			'version' => $this->connection->getAttribute(PDO::ATTR_SERVER_VERSION),
+			'charset' => $this->options['charset']
+		];
+	}
+
+	/**
+	 * Closes the connection
+	 */
+	public function close(): void
+	{
+		$this->connection = null;
+	}
+
+	/**
+	 * Prepares an SQL statement
+	 * @throws RuntimeException
+	 */
+	private function prepare(string $sql): PDOStatement
+	{
+		try {
+			return $this->connection->prepare($sql);
+		} catch (PDOException $e) {
+			throw new RuntimeException("Prepare failed: " . $e->getMessage());
+		}
+	}
+
+	/**
+	 * Gets PHP version ID
+	 */
+	private function getPhpVersion(): int
+	{
 		if (!defined('PHP_VERSION_ID')) {
 			$version = explode('.', PHP_VERSION);
 			define('PHP_VERSION_ID', ($version[0] * 10000 + $version[1] * 100 + $version[2]));
 		}
 		return PHP_VERSION_ID;
 	}
-	private function requirement_check() {
-		if (!defined('PDO::ATTR_DRIVER_NAME')) {
-			$this->halt('PDO Support is unavailable');
-		}
-		return true;
-	}
-	private function halt($message = '') {
-		$content_type = $this->get_content_type();
-		if($message == '') {
-			$message = '[' . $this->library_name . '] Error: MySQL Query Error';
-		} else {
-			if($content_type === 'text/html') {
-				$message = str_replace("\n", '<br />', $message);
-				$message = str_replace(PHP_EOL, '<br />', $message);
-			}
-			$message = '[' . $this->library_name . '] ' . $message;
-		}
-		if($content_type === 'text/html') {
-			die('<p style="font-weight: bold; color: #F00; font-family: Arial; font-size: 11px;">' . $message . '</p>');
-		} else {
-			die($message);
-		}
-	}
-	private function get_content_type() {
-		$headers = headers_list();
-		foreach($headers as $index => $value) {
-			list($key, $value) = explode(': ', $value);
-			unset($headers[$index]);
-			$headers[$key] = $value;
-		}
-		if(isset($headers['Content-Type'])) {
-			return $headers['Content-Type'];
-		} else {
-			return 'text/html';
-		}
+
+	/**
+	 * Destructor ensures connection is closed
+	 */
+	public function __destruct()
+	{
+		$this->close();
 	}
 }
 ?>

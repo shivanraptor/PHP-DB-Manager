@@ -1,360 +1,268 @@
 <?php
-/*
-    dbManager for Mysqli v1.6
-    == Usage ============================
-    1. Backward compatible version:
-       $db = new dbManager(db_host, db_user, db_pass, db_schm);
-    2. Support of charaset, disable debug message
-       $db = new dbManager(db_host, db_user, db_pass, db_schm, FALSE, 'utf8');
-    3. To check connection error:
-       if($db->error !== NULL) {
-           // error exists
-       }
-    4. Escape String
-       $db->escape_string($str);
-    5. Use MySQLi PHP functions directly
-       Obtain MySQLi object by:
-       $db->mysqli
-    6. Prepared Statement
-       $sql = "SELECT field_name1, field_name2 FROM table_name WHERE id = ?"; 	// cannot use "SELECT *"
-       $params = array('i' => 1); 												// i = integer , d = double , s = string , b = blob
-       $result = $db->query_prepare($sql, $params);
-       if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
-           $row = $db->result($result);
-           echo $row['field_name1'];
-       } else {
-           foreach($result as $row) {
-                  echo $row['field_name1'] . ' ' .$row['field_name2'];
-           }
-       }
+declare(strict_types=1);
 
-    Parameters of constructor:
-    host 		: Host of MySQL server , e.g. localhost or 192.168.1.123 ( make sure TCP/IP connection of MySQL server is enabled )
-    user 		: Username
-    pass		: Password
-    _debugMode	: Debug mode ( set TRUE to enable , set FALSE to disable )
-    charSet		: Character set of connection ( defaults to UTF-8 )
-    autoCommit	: Transaction Auto Commit mode ( set TRUE to enable , set FALSE to disable )
-    port		: Server Port of MySQL server ( defaults to 3306 , standard port of MySQL server )
-    persistent	: Persistent Connection mode ( set TRUE to enable , set FALSE to disable )
+namespace PhpDbManager;
 
+use mysqli;
+use mysqli_stmt;
+use mysqli_result;
+use RuntimeException;
+use InvalidArgumentException;
 
-    == Version History ==================
-    v1.0
-    - initial release
-    v1.1
-    - add custom server port support
-    - add persistent connection support
-    v1.2
-    - add fetch_object() support
-    v1.3
-    - add function query_prepare($sql, $params);
-    v1.4
-    - add query counter ( public variable : $query_count )
-    - add current login user & server info ( see function : get_connection_info() )
-    v1.5
-    - add shortcut function combining $db->query & $db->result
-    - centralize error message processing
-    - error message respecting Content-Type
-    v1.6 ( Coming Soon )
-    - add PDO support
-
-    == Program History ==================
-    original dbManager for MySQL by Raptor Kwok
-    original dbManager for MySQLi by Hoyu
-
-    Feel free to use, but kindly leave this statement here.
-
-    Technical Support : findme@raptor.hk ( please specify "dbManager for MySQLi" in title )
-*/
-
-class dbManager
+/**
+ * Modern PHP Database Manager for MySQLi
+ * 
+ * @package PhpDbManager
+ * @version 2.0.0
+ */
+class DbManager implements DbManagerInterface
 {
-    public $error = null;
-    public $debugMode = true;
-    public $mysqli;
-    public $query_count = 0;
-    private $connected_server;
-    private $connected_user;
-    private $library_name = 'PHP DB Manager';
+    private const DEFAULT_PORT = 3306;
+    private const DEFAULT_CHARSET = 'utf8mb4';
+    
+    private ?mysqli $connection = null;
+    private string $connectedServer;
+    private string $connectedUser;
+    private int $queryCount = 0;
+    private array $options;
 
-    public function __construct($host, $user, $pass, $dbname = '', $_debugMode = true, $charSet = 'utf8', $autoCommit = true, $port = 3306, $persistent = false)
+    /**
+     * @param array $options Connection options
+     * @throws RuntimeException If connection fails
+     */
+    public function __construct(array $options)
     {
-        $this->debugMode = $_debugMode;
-        $this->error = $this->connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit, $port);
-    }
-    public function dbManager($host, $user, $pass, $dbname = '', $_debugMode = true, $charSet = 'utf8', $autoCommit = true, $port = 3306, $persistent = false)
-    {
-        $this->debugMode = $_debugMode;
-        $this->connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit, $port);
+        $this->options = array_merge([
+            'host' => 'localhost',
+            'port' => self::DEFAULT_PORT,
+            'charset' => self::DEFAULT_CHARSET,
+            'persistent' => false,
+            'autocommit' => true,
+            'timeout' => 30,
+            'retry_attempts' => 3,
+            'retry_delay' => 100, // milliseconds
+        ], $options);
+
+        $this->validateOptions();
+        $this->connect();
     }
 
-    public function connect($host, $user, $pass, $dbname, $persistent, $charSet, $autoCommit, $port)
+    /**
+     * Validates connection options
+     * @throws InvalidArgumentException
+     */
+    private function validateOptions(): void
     {
-        if ($persistent === true) {
-            $host = 'p:' . $host;
-        }
-        $this->mysqli = new mysqli($host, $user, $pass, $dbname, $port);
-        if ($this->mysqli->connect_error !== null) {
-            if ($this->debugMode) {
-                $this->halt('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
-            } else {
-                return $mysqli->connect_error;
+        $required = ['host', 'username', 'password', 'database'];
+        foreach ($required as $field) {
+            if (empty($this->options[$field])) {
+                throw new InvalidArgumentException("Missing required option: {$field}");
             }
         }
-        // added in v1.4 : connected server & user info
-        $this->connected_server = $host . ':' . $port;
-        $this->connected_user = $user;
-        $this->mysqli->autocommit($autoCommit);
-        if (!$this->mysqli->set_charset($charSet)) {
-            $this->mysqli->set_charset('utf8');
-        }
-        return null;
     }
-    public function select_db($dbname)
+
+    /**
+     * Establishes database connection with retry mechanism
+     * @throws RuntimeException
+     */
+    private function connect(): void 
     {
-        return $this->mysqli->select_db($dbname);
-    }
-    public function query_prepare($sql, $params, $report_error = null, &$error_msg = '')
-    {
-        if ($this->error !== null) {
-            if ($this->debugMode) {
-                $this->halt('MySQL connection error!');
+        $attempts = 0;
+        $lastError = null;
+
+        do {
+            try {
+                $host = $this->options['persistent'] ? "p:{$this->options['host']}" : $this->options['host'];
+                
+                $this->connection = new mysqli(
+                    $host,
+                    $this->options['username'],
+                    $this->options['password'],
+                    $this->options['database'],
+                    $this->options['port']
+                );
+
+                if ($this->connection->connect_error) {
+                    throw new RuntimeException($this->connection->connect_error);
+                }
+
+                $this->connection->set_charset($this->options['charset']);
+                $this->connection->autocommit($this->options['autocommit']);
+                
+                // Store connection info
+                $this->connectedServer = "{$this->options['host']}:{$this->options['port']}";
+                $this->connectedUser = $this->options['username'];
+                
+                return;
+            } catch (RuntimeException $e) {
+                $lastError = $e;
+                $attempts++;
+                if ($attempts < $this->options['retry_attempts']) {
+                    usleep($this->options['retry_delay'] * 1000);
+                }
             }
-            return false;
-        }
-        $stmt = $this->mysqli->prepare($sql);
-        if ($stmt !== false) {
-            $values = array();
+        } while ($attempts < $this->options['retry_attempts']);
+
+        throw new RuntimeException(
+            "Failed to connect after {$attempts} attempts. Last error: " . $lastError->getMessage()
+        );
+    }
+
+    /**
+     * Executes a prepared statement
+     * @param string $sql SQL query with placeholders
+     * @param array $params Array of parameters ['type' => value]
+     * @return mysqli_result|bool
+     * @throws RuntimeException
+     */
+    public function execute(string $sql, array $params = []): mysqli_result|bool
+    {
+        $stmt = $this->prepare($sql);
+        
+        if (!empty($params)) {
             $types = '';
-            foreach ($params as $k => $v) {
-                $values[] = $v;
-                $types .= $k;
+            $values = [];
+            
+            foreach ($params as $type => $value) {
+                $types .= $type;
+                $values[] = $value;
             }
-            call_user_func_array(array($stmt, 'bind_param'), array_merge(array($types), $values));
-            $stmt->execute();
-
-            if (version_compare(PHP_VERSION, '5.3.0') >= 0) {
-                return $stmt->get_result();
-            } else {
-                $fields = array();
-                $results = array();
-                $stmt->store_result();
-                $meta = $stmt->result_metadata();
-                while ($field = $meta->fetch_field()) {
-                    $var = $field->name;
-                    $$var = null;
-                    $fields[$var] = &$$var;
-                }
-                call_user_func_array(array($stmt,'bind_result'), $fields);
-                $i = 0;
-                while ($stmt->fetch()) {
-                    $results[$i] = array();
-                    foreach ($fields as $k => $v) {
-                        $results[$i][$k] = $v;
-                    }
-                    $i++;
-                }
-
-                // close statement
-                $stmt->close();
-                return $results;
-            }
-        } else {
-            if ($report_error === null) {
-                $report_error = $this->debugMode;
-            }
-
-            if ($report_error === true) {
-                $err_msg  = 'MySQL error: ' . $this->mysqli->error . "\n";
-                $err_msg .= 'Query: ' . $sql;
-                $this->halt($err_msg);
-            } elseif ($error_msg != '') {
-                $error_msg = $this->mysqli->error;
-                return false;
-            } else {
-                return false;
-            }
+            
+            $stmt->bind_param($types, ...$values);
         }
+        
+        if (!$stmt->execute()) {
+            throw new RuntimeException("Execute failed: " . $stmt->error);
+        }
+        
+        $this->queryCount++;
+        $result = $stmt->get_result();
+        $stmt->close();
+        
+        return $result;
     }
 
-    public function query($sql, $report_error = null, &$error_msg = '')
+    /**
+     * Fetches a single row
+     * @param mysqli_result $result
+     * @param string $type Fetch type (assoc|array|object)
+     * @return array|object|null
+     */
+    public function fetch(mysqli_result $result, string $type = 'assoc'): array|object|null
     {
-        if ($this->error !== null) {
-            if ($this->debugMode) {
-                $this->halt('MySQL connection error!');
-            }
-            return false;
-        }
-        $resultset = $this->mysqli->query($sql);
-        $this->query_count++;
-        if ($resultset === false) {
-            if ($report_error === null) {
-                $report_error = $this->debugMode;
-            }
-            if ($report_error === true) {
-                $err_msg = 'MySQL error: ' . $this->mysqli->error . "\n";
-                $err_msg .= 'Query: ' . $sql;
-                $this->halt($err_msg);
-            } elseif ($error_msg != '') {
-                $error_msg = $this->mysqli->error;
-                return false;
-            } else {
-                return false;
-            }
-        }
-        return $resultset;
+        return match($type) {
+            'assoc' => $result->fetch_assoc(),
+            'array' => $result->fetch_array(),
+            'object' => $result->fetch_object(),
+            default => $result->fetch_assoc()
+        };
     }
-    public function result($rs, $type = 'assoc')
+
+    /**
+     * Fetches all rows
+     * @param mysqli_result $result
+     * @param string $type Fetch type
+     * @return array
+     */
+    public function fetchAll(mysqli_result $result, string $type = 'assoc'): array
     {
-        if ($this->error !== null) {
-            if ($this->debugMode) {
-                $this->halt('MySQL connection error!');
-            }
-            return false;
+        $rows = [];
+        while ($row = $this->fetch($result, $type)) {
+            $rows[] = $row;
         }
-        switch($type) {
-            case 'assoc':
-                $out_value = $rs->fetch_assoc();
-                break;
-            case 'array':
-                $out_value = $rs->fetch_array();
-                break;
-            case 'row':
-                $out_value = $rs->fetch_row();
-                break;
-            case 'object':
-                $out_value = $rs->fetch_object();
-                break;
-            case 'field':
-                $out_value = $rs->fetch_field();
-                break;
-            case 'num_rows_affected':
-                $out_value = (int)$this->mysqli->affected_rows;
-                break;
-            case 'num_fields':
-                $out_value = (int)$rs->field_count;
-                break;
-            case 'num_rows':
-                $out_value = (int)$rs->num_rows;
-                break;
-            default:
-                $out_value = $rs->fetch_assoc();
-                break;
-        }
-        if ($out_value === null) {
-            $rs->close();
-        }
-        return $out_value;
+        return $rows;
     }
-    // introduced in v1.5
-    public function rs($sql, $extended_info = false)
+
+    /**
+     * Begins a transaction
+     */
+    public function beginTransaction(): bool
     {
-        if ($extended_info === true) {
-            $start_time = microtime(true);
-            $result = array();
-            $rs = $this->query($sql);
-            $result_array = array();
-            while ($row = $this->result($rs)) {
-                $result_array[] = $row;
-            }
-            $result['rs'] = $result_array;
-            $result['num_rows'] = $this->result($rs, 'num_rows');
-            $end_time = microtime(true);
-            $result['exec_time'] = ($end_time - $start_time);
-            return $result;
-        } else {
-            $rs = $this->query($sql);
-            $result = array();
-            while ($row = $this->result($rs)) {
-                $result[] = $row;
-            }
-            return $result;
+        return $this->connection->begin_transaction();
+    }
+
+    /**
+     * Commits a transaction
+     */
+    public function commit(): bool
+    {
+        return $this->connection->commit();
+    }
+
+    /**
+     * Rolls back a transaction
+     */
+    public function rollback(): bool
+    {
+        return $this->connection->rollback();
+    }
+
+    /**
+     * Gets the ID of the last inserted row
+     */
+    public function lastInsertId(): int
+    {
+        return $this->connection->insert_id;
+    }
+
+    /**
+     * Gets the number of affected rows
+     */
+    public function affectedRows(): int
+    {
+        return $this->connection->affected_rows;
+    }
+
+    /**
+     * Gets the number of executed queries
+     */
+    public function getQueryCount(): int
+    {
+        return $this->queryCount;
+    }
+
+    /**
+     * Gets connection info
+     */
+    public function getConnectionInfo(): array
+    {
+        return [
+            'server' => $this->connectedServer,
+            'user' => $this->connectedUser,
+            'version' => $this->connection->server_info,
+            'charset' => $this->connection->charset
+        ];
+    }
+
+    /**
+     * Closes the connection
+     */
+    public function close(): void
+    {
+        if ($this->connection) {
+            $this->connection->close();
+            $this->connection = null;
         }
     }
 
-    public function escape_string($str)
+    /**
+     * Prepares an SQL statement
+     * @throws RuntimeException
+     */
+    private function prepare(string $sql): mysqli_stmt
     {
-        return $this->mysqli->real_escape_string($str);
-    }
-    public function insert_id()
-    {
-        return (int)$this->mysqli->insert_id;
-    }
-    public function close()
-    {
-        return $this->mysqli->close();
-    }
-    public function version()
-    {
-        return $this->mysqli->server_info;
-    }
-    public function halt($message = '')
-    {
-        $content_type = $this->get_content_type();
-        if ($message == '') {
-            $message = '[' . $this->library_name . '] Error: MySQL Query Error';
-        } else {
-            if ($content_type === 'text/html') {
-                $message = str_replace("\n", '<br />', $message);
-                $message = str_replace(PHP_EOL, '<br />', $message);
-            }
-            $message = '[' . $this->library_name . '] ' . $message;
-        }
-        if ($content_type === 'text/html') {
-            die('<p style="font-weight: bold; color: #F00; font-family: Arial; font-size: 11px;">' . $message . '</p>');
-        } else {
-            die($message);
-        }
-    }
-    public function free($rs)
-    {
-        return @$rs->close();
-    }
-    public function start_transaction()
-    {
-        $this->autocommit(false);
-    }
-    public function autocommit($bool)
-    {
-        $this->mysqli->autocommit($bool);
-    }
-    public function commit()
-    {
-        $this->mysqli->commit();
-        $this->autocommit(true);
-    }
-    public function rollback()
-    {
-        $this->mysqli->rollback();
-    }
-    public function stmt_prepare($psql)
-    {
-        $stmt = $this->mysqli->stmt_init();
-        if (!$stmt->prepare($psql)) {
-            return null;
+        $stmt = $this->connection->prepare($sql);
+        if (!$stmt) {
+            throw new RuntimeException("Prepare failed: " . $this->connection->error);
         }
         return $stmt;
     }
-    public function get_connection_info()
+
+    /**
+     * Destructor ensures connection is closed
+     */
+    public function __destruct()
     {
-        return array('server' => $this->connected_server , 'user' => $this->connected_user);
-    }
-    // =======================
-    // Helper Functions
-    // =======================
-    private function get_content_type()
-    {
-        $headers = headers_list();
-        foreach ($headers as $index => $value) {
-            list($key, $value) = explode(': ', $value);
-            unset($headers[$index]);
-            $headers[$key] = $value;
-        }
-        if (isset($headers['Content-Type'])) {
-            return $headers['Content-Type'];
-        } else {
-            return 'text/html';
-        }
+        $this->close();
     }
 }

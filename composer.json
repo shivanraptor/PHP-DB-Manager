@@ -1,22 +1,39 @@
 {
     "name": "shivanraptor/php-db-manager",
     "type": "library",
-    "description": "Easy-to-use PHP wrapper for MySQL database",
-    "keywords": ["mysql", "mysqli", "mariadb","wrapper"],
+    "description": "Modern PHP wrapper for MySQL database with prepared statements and connection pooling",
+    "keywords": ["mysql", "mysqli", "mariadb", "wrapper", "database", "pdo"],
     "homepage": "https://github.com/shivanraptor/PHP-DB-Manager",
     "license": "MIT",
     "authors": [
-    	{
-    		"name": "Raptor K",
-    		"email": "findme@raptor.hk",
-    		"homepage": "https://raptor.hk",
-    		"role": "Developer"
-    	}
+        {
+            "name": "Raptor K",
+            "email": "findme@raptor.hk",
+            "homepage": "https://yourappapp.com",
+            "role": "Developer"
+        }
     ],
-    "autoload": {
-    	"files": ["lib/db.manager.mysqli.php"]
-    },
     "require": {
-        "php": ">=5.3.0"
+        "php": ">=7.4.0",
+        "ext-mysqli": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "PhpDbManager\\": "lib/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0",
+        "squizlabs/php_codesniffer": "^3.0",
+        "phpstan/phpstan": "^1.0"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs-check": "phpcs",
+        "cs-fix": "phpcbf",
+        "static-analysis": "phpstan analyse lib/ --level=max"
+    },
+    "config": {
+        "sort-packages": true
     }
 }
